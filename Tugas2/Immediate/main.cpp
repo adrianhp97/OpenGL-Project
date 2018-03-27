@@ -15,6 +15,37 @@ static float rgb[3] = {1.0f, 0, 0};
 const int radius = 5;
 GLfloat twicePi = 2.0f * M_PI;
 
+void init(void);
+void carBody(void);
+void wheelFront(void);
+void wheelBack(void);
+void window(void);
+void renderDisplay(void);
+void moveForward(void);
+void moveBackward(void);
+void reshape(int w, int h);
+void readMouse(int button, int state, int x, int y);
+void readKeyboard(unsigned char key, int x, int y);
+void initializeWindow(int x, int y, int posX, int posY);
+
+/* 
+ *  Request double buffer display mode.
+ *  Register mouse input callback functions
+ */
+int main(int argc, char** argv)
+{
+    glutInit(&argc, argv);
+    glutInitDisplayMode (GLUT_DOUBLE | GLUT_RGB);
+    initializeWindow(500,500,725,200);
+    init ();
+    glutDisplayFunc(renderDisplay); 
+    glutReshapeFunc(reshape);
+    glutKeyboardFunc(readKeyboard);
+    glutMouseFunc(readMouse);
+    glutMainLoop();
+    return 0;
+}
+
 void init(void) 
 {
    glClearColor (0.0, 0.0, 0.0, 0.0);
@@ -213,22 +244,4 @@ void initializeWindow(int x, int y, int posX, int posY) {
     glutInitWindowPosition(posX,posY);
     glutCreateWindow ("Window");
     glutSetWindow(1);
-}
-
-/* 
- *  Request double buffer display mode.
- *  Register mouse input callback functions
- */
-int main(int argc, char** argv)
-{
-    glutInit(&argc, argv);
-    glutInitDisplayMode (GLUT_DOUBLE | GLUT_RGB);
-    initializeWindow(500,500,725,200);
-    init ();
-    glutDisplayFunc(renderDisplay); 
-    glutReshapeFunc(reshape);
-    glutKeyboardFunc(readKeyboard);
-    glutMouseFunc(readMouse);
-    glutMainLoop();
-    return 0;
 }
