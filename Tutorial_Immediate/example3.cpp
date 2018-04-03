@@ -1,3 +1,8 @@
+/*
+    Tutorial from:
+    https://www.openglprojects.in/2017/06/3d-car-animation-opengl-computer-graphics-program.html#gsc.tab=0
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <GL/glut.h>
