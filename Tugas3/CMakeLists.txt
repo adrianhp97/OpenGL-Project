@@ -58,22 +58,14 @@ add_definitions(
 
 # Tutorial 17
 add_executable(Shader
-	Shader/tutorial17.cpp
+	Shader/main.cpp
 	common/shader.cpp
 	common/shader.hpp
 	common/controls.cpp
 	common/controls.hpp
-	common/texture.cpp
-	common/texture.hpp
-	common/objloader.cpp
-	common/objloader.hpp
-	common/vboindexer.cpp
-	common/vboindexer.hpp
-	common/quaternion_utils.cpp
-	common/quaternion_utils.hpp
 	
-	Shader/StandardShading.vertexshader
-	Shader/StandardShading.fragmentshader
+	Shader/TransformVertexShader.vertexshader
+	Shader/ColorFragmentShader.fragmentshader
 )
 target_link_libraries(Shader
 	${ALL_LIBS}

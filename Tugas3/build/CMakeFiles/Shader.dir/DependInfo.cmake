@@ -4,13 +4,9 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/Shader/tutorial17.cpp" "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/build/CMakeFiles/Shader.dir/Shader/tutorial17.cpp.o"
+  "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/Shader/main.cpp" "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/build/CMakeFiles/Shader.dir/Shader/main.cpp.o"
   "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/common/controls.cpp" "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/build/CMakeFiles/Shader.dir/common/controls.cpp.o"
-  "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/common/objloader.cpp" "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/build/CMakeFiles/Shader.dir/common/objloader.cpp.o"
-  "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/common/quaternion_utils.cpp" "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/build/CMakeFiles/Shader.dir/common/quaternion_utils.cpp.o"
   "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/common/shader.cpp" "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/build/CMakeFiles/Shader.dir/common/shader.cpp.o"
-  "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/common/texture.cpp" "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/build/CMakeFiles/Shader.dir/common/texture.cpp.o"
-  "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/common/vboindexer.cpp" "/home/adrianhp97/Desktop/College/OpenGL-Project/Tugas3/build/CMakeFiles/Shader.dir/common/vboindexer.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 
