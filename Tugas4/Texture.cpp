@@ -11,12 +11,31 @@
 
 #include <iostream>
 
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+
+// camera
+glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f, 3.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f, 0.0f);
+
+bool firstMouse = true;
+float yaw   = -90.0f;	// yaw is initialized to -90.0 degrees since a yaw of 0.0 results in a direction vector pointing to the right so we initially rotate a bit to the left.
+float pitch =  0.0f;
+float lastX =  800.0f / 2.0;
+float lastY =  600.0 / 2.0;
+float fov   =  45.0f;
+
+// timing
+float deltaTime = 0.0f;	// time between current frame and last frame
+float lastFrame = 0.0f;
 
 int main()
 {
@@ -42,6 +61,11 @@ int main()
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+
+    // tell GLFW to capture our mouse
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -61,7 +85,60 @@ int main()
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
+    float wheel_vertices[] = {
+        // Back
+        -0.25f, -0.25f, -0.1f,  0.0f, 0.0f,
+         0.25f, -0.25f, -0.1f,  1.0f, 0.0f,
+         0.25f,  0.25f, -0.1f,  1.0f, 1.0f,
+         0.25f,  0.25f, -0.1f,  1.0f, 1.0f,
+        -0.25f,  0.25f, -0.1f,  0.0f, 1.0f,
+        -0.25f, -0.25f, -0.1f,  0.0f, 0.0f,
+
+        // Front
+        -0.25f, -0.25f,  0.1f,  0.0f, 0.0f,
+         0.25f, -0.25f,  0.1f,  1.0f, 0.0f,
+         0.25f,  0.25f,  0.1f,  1.0f, 1.0f,
+         0.25f,  0.25f,  0.1f,  1.0f, 1.0f,
+        -0.25f,  0.25f,  0.1f,  0.0f, 1.0f,
+        -0.25f, -0.25f,  0.1f,  0.0f, 0.0f,
+
+        // Left
+        -0.25f,  0.25f,  0.1f,  1.0f, 0.0f,
+        -0.25f,  0.25f, -0.1f,  1.0f, 1.0f,
+        -0.25f, -0.25f, -0.1f,  0.0f, 1.0f,
+        -0.25f, -0.25f, -0.1f,  0.0f, 1.0f,
+        -0.25f, -0.25f,  0.1f,  0.0f, 0.0f,
+        -0.25f,  0.25f,  0.1f,  1.0f, 0.0f,
+        
+        // Right
+         0.25f,  0.25f,  0.1f,  1.0f, 0.0f,
+         0.25f,  0.25f, -0.1f,  1.0f, 1.0f,
+         0.25f, -0.25f, -0.1f,  0.0f, 1.0f,
+         0.25f, -0.25f, -0.1f,  0.0f, 1.0f,
+         0.25f, -0.25f,  0.1f,  0.0f, 0.0f,
+         0.25f,  0.25f,  0.1f,  1.0f, 0.0f,
+
+        // Bottom
+        -0.25f, -0.25f, -0.1f,  0.0f, 1.0f,
+         0.25f, -0.25f, -0.1f,  1.0f, 1.0f,
+         0.25f, -0.25f,  0.1f,  1.0f, 0.0f,
+         0.25f, -0.25f,  0.1f,  1.0f, 0.0f,
+        -0.25f, -0.25f,  0.1f,  0.0f, 0.0f,
+        -0.25f, -0.25f, -0.1f,  0.0f, 1.0f,
+
+        // Top
+        -0.25f,  0.25f, -0.1f,  0.0f, 1.0f,
+         0.25f,  0.25f, -0.1f,  1.0f, 1.0f,
+         0.25f,  0.25f,  0.1f,  1.0f, 0.0f,
+         0.25f,  0.25f,  0.1f,  1.0f, 0.0f,
+        -0.25f,  0.25f,  0.1f,  0.0f, 0.0f,
+        -0.25f,  0.25f, -0.1f,  0.0f, 1.0f
+    };
+
+    int wheel_vertices_sizes = ((sizeof wheel_vertices) / (sizeof * wheel_vertices));
+
     float vertices[] = {
+        // Back
         -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
          0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
          0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
@@ -69,13 +146,15 @@ int main()
         -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
         -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
 
+        // Front
         -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
          0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
          0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
          0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
         -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
         -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-
+        
+        // Left
         -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
         -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
         -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
@@ -83,13 +162,134 @@ int main()
         -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
         -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
 
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        // EXT LEFT
+            // er front
+        -0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+        -0.5f, 0.0f, 0.5f, 1.0f, 0.5f,
+        -1.0f, 0.0f, 0.5f, 1.5f, 0.5f,
 
+        -0.5f, 0.0f, 0.5f,  1.0f, 0.5f,
+        -1.0f, 0.0f, 0.5f,  1.5f, 0.5f,
+        -0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+        -1.0f, -0.5f, 0.5f, 1.5f, 0.0f,
+        -1.0f, 0.0f, 0.5f,  1.5f, 0.5f,
+
+        -1.0f, 0.0f, 0.5f,  1.5f, 0.5f,
+        -1.5f, 0.0f,0.5f,   2.0f, 0.5f,
+        -1.0f, -0.5f,0.5f,  1.5f, 0.0f,
+        -1.0f, -0.5f, 0.5f, 1.5f, 0.0f,
+        -1.5f, -0.5f, 0.5f, 2.0f, 0.0f,
+        -1.5f, 0.0f,  0.5f, 2.0f, 0.5f,
+
+        //er back
+        -0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+        -0.5f, 0.0f, -0.5f, 1.0f, 0.5f,
+        -1.0f, 0.0f, -0.5f, 1.5f, 0.5f,
+
+        -0.5f, 0.0f, -0.5f,  1.0f, 0.5f,
+        -1.0f, 0.0f, -0.5f, 1.5f, 0.5f,
+        -0.5f, -0.5f,-0.5f,  1.0f, 0.0f,
+        -0.5f, -0.5f,-0.5f,  1.0f, 0.0f,
+        -1.0f, -0.5f,-0.5f,  1.5f, 0.0f,
+        -1.0f, 0.0f, -0.5f, 1.5f, 0.5f,
+
+        -1.0f, 0.0f,  -0.5f,  1.5f, 0.5f,
+        -1.5f, 0.0f,  -0.5f,   2.0f, 0.5f,
+        -1.0f, -0.5f, -0.5f,  1.5f, 0.0f,
+        -1.0f, -0.5f, -0.5f, 1.5f, 0.0f,
+        -1.5f, -0.5f, -0.5f, 2.0f, 0.0f,
+        -1.5f, 0.0f,  -0.5f, 2.0f, 0.5f,
+
+        // er top
+        -1.0f, 0.0f, 0.5f,  1.5f, 0.0f, 
+        -1.5f, 0.0f, -0.5f, 2.0f, 1.0f,
+        -1.0f, 0.0f, -0.5f, 1.5f, 1.0f, 
+        -1.0f, 0.0f, 0.5f,  1.5f, 0.0f,
+        -1.5f, 0.0f, -0.5f, 2.0f, 1.0f,
+        -1.5f, 0.0f, 0.5f,  2.0f, 0.0f,
+        
+        // er right
+        -1.5f, 0.0f, 0.5f,   0.5f, 0.0f,
+        -1.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -1.5f, 0.0f, -0.5f,  0.5f, 1.0f,
+        -1.5f, 0.0f, 0.5f,   0.5f, 0.0f,
+        -1.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+        -1.5f, -0.5f, 0.5f,  1.0f, 0.0f,
+
+        // er middle
+        -0.5f, 0.5f, 0.5f,  1.0f, 0.0f,  
+        -1.0f, 0.0, 0.5f, 1.0f, 0.0f,
+        -1.0f, 0.0, -0.5f, 1.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, 1.0f, 0.0f,
+        -1.0f, 0.0, -0.5f, 1.0f, 0.0f,
+        
+        // EXT RIGHT
+            // er front
+        0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+        0.5f, 0.0f, 0.5f, 1.0f, 0.5f,
+        1.0f, 0.0f, 0.5f, 1.5f, 0.5f,
+
+        0.5f, 0.0f, 0.5f,  1.0f, 0.5f,
+        1.0f, 0.0f, 0.5f,  1.5f, 0.5f,
+        0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+        1.0f, -0.5f, 0.5f, 1.5f, 0.0f,
+        1.0f, 0.0f, 0.5f,  1.5f, 0.5f,
+
+        1.0f, 0.0f, 0.5f,  1.5f, 0.5f,
+        1.5f, 0.0f,0.5f,   2.0f, 0.5f,
+        1.0f, -0.5f,0.5f,  1.5f, 0.0f,
+        1.0f, -0.5f, 0.5f, 1.5f, 0.0f,
+        1.5f, -0.5f, 0.5f, 2.0f, 0.0f,
+        1.5f, 0.0f,  0.5f, 2.0f, 0.5f,
+
+            //er back
+        0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+        0.5f, 0.0f, -0.5f, 1.0f, 0.5f,
+        1.0f, 0.0f, -0.5f, 1.5f, 0.5f,
+
+        0.5f, 0.0f, -0.5f,  1.0f, 0.5f,
+        1.0f, 0.0f, -0.5f, 1.5f, 0.5f,
+        0.5f, -0.5f,-0.5f,  1.0f, 0.0f,
+        0.5f, -0.5f,-0.5f,  1.0f, 0.0f,
+        1.0f, -0.5f,-0.5f,  1.5f, 0.0f,
+        1.0f, 0.0f, -0.5f, 1.5f, 0.5f,
+
+        1.0f, 0.0f,  -0.5f,  1.5f, 0.5f,
+        1.5f, 0.0f,  -0.5f,   2.0f, 0.5f,
+        1.0f, -0.5f, -0.5f,  1.5f, 0.0f,
+        1.0f, -0.5f, -0.5f, 1.5f, 0.0f,
+        1.5f, -0.5f, -0.5f, 2.0f, 0.0f,
+        1.5f, 0.0f,  -0.5f, 2.0f, 0.5f,
+
+        // er top
+        1.0f, 0.0f, 0.5f,  1.5f, 0.0f, 
+        1.5f, 0.0f, -0.5f, 2.0f, 1.0f,
+        1.0f, 0.0f, -0.5f, 1.5f, 1.0f, 
+        1.0f, 0.0f, 0.5f,  1.5f, 0.0f,
+        1.5f, 0.0f, -0.5f, 2.0f, 1.0f,
+        1.5f, 0.0f, 0.5f,  2.0f, 0.0f,
+        
+        // er right
+        1.5f, 0.0f, 0.5f,   0.5f, 0.0f,
+        1.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        1.5f, 0.0f, -0.5f,  0.5f, 1.0f,
+        1.5f, 0.0f, 0.5f,   0.5f, 0.0f,
+        1.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+        1.5f, -0.5f, 0.5f,  1.0f, 0.0f,
+
+        // er middle
+        0.5f, 0.5f, 0.5f,  0.0f, 0.0f,  
+        1.0f, 0.0, 0.5f, 0.0f, 0.0f,
+        1.0f, 0.0, -0.5f, 0.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 0.0f,
+        1.0f, 0.0, -0.5f, 0.0f, 0.0f,
+
+
+        // Bottom
         -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
          0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
          0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
@@ -97,6 +297,7 @@ int main()
         -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
         -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
 
+        // Top
         -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
          0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
          0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
@@ -104,14 +305,35 @@ int main()
         -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
         -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
     };
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
 
+    int vertice_sizes = (sizeof(vertices)/sizeof(*vertices));
+
+    // world space positions of car body
+    glm::vec3 carBodyPositions[] = {
+        glm::vec3( 0.0f,  0.0f,  0.0f),
+    };
+    int car_body_number = (sizeof(carBodyPositions)/sizeof(*carBodyPositions));
+
+    // world space positions of car wheel
+    glm ::vec3 carWheelPositions[] = {
+        glm::vec3(0.75f, -0.5f, 0.5f),
+        glm::vec3(-0.75f, -0.5f, 0.5f),
+        glm::vec3(0.75f, -0.5f, -0.5f),
+        glm::vec3(-0.75f, -0.5f, -0.5f),
+    };
+    int car_wheel_number = (sizeof(carWheelPositions)/sizeof(*carWheelPositions));
+
+    unsigned int VBO, VAO, wheelVBO;
+    glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
 
+    glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &wheelVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, wheelVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(wheel_vertices), wheel_vertices, GL_STATIC_DRAW);
 
     // position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
@@ -183,6 +405,12 @@ int main()
     // -----------
     while (!glfwWindowShouldClose(window))
     {
+        // per-frame time logic
+        // --------------------
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
         // input
         // -----
         processInput(window);
@@ -190,7 +418,7 @@ int main()
         // render
         // ------
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // also clear the depth buffer now!
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
         // bind textures on corresponding texture units
         glActiveTexture(GL_TEXTURE0);
@@ -201,26 +429,59 @@ int main()
         // activate shader
         ourShader.use();
 
-        // create transformations
-        glm::mat4 model;
-        glm::mat4 view;
-        glm::mat4 projection;
-        model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.5f, 1.0f, 0.0f));
-        view  = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-        projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        // retrieve the matrix uniform locations
-        unsigned int modelLoc = glGetUniformLocation(ourShader.ID, "model");
-        unsigned int viewLoc  = glGetUniformLocation(ourShader.ID, "view");
-        // pass them to the shaders (3 different ways)
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &view[0][0]);
-        // note: currently we set the projection matrix each frame, but since the projection matrix rarely changes it's often best practice to set it outside the main loop only once.
+        // pass projection matrix to shader (note that in this case it could change every frame)
+        glm::mat4 projection = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         ourShader.setMat4("projection", projection);
 
-        // render box
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        // camera/view transformation
+        glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        ourShader.setMat4("view", view);
 
+        // render car body
+        glBindVertexArray(VAO);
+
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        // position attribute
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        // texture coord attribute
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+
+        for (unsigned int i = 0; i < car_body_number; i++)
+        {
+            // calculate the model matrix for each object and pass it to shader before drawing
+            glm::mat4 model;
+            model = glm::translate(model, carBodyPositions[i]);
+            float angle = /*2*/0.0f * i;
+            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+            ourShader.setMat4("model", model);
+
+            glDrawArrays(GL_TRIANGLES, 0, vertice_sizes);
+        }
+
+        // render car wheel
+        glBindBuffer(GL_ARRAY_BUFFER, wheelVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(wheel_vertices), wheel_vertices, GL_STATIC_DRAW);
+        // position attribute
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        // texture coord attribute
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+
+        for (unsigned int i = 0; i < car_wheel_number; i++)
+        {
+            // calculate the model matrix for each object and pass it to shader before drawing
+            glm::mat4 model;
+            model = glm::translate(model, carWheelPositions[i]);
+            float angle = /*2*/0.0f * i;
+            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+            ourShader.setMat4("model", model);
+
+            glDrawArrays(GL_TRIANGLES, 0, wheel_vertices_sizes);
+        }
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -245,6 +506,16 @@ void processInput(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+    float cameraSpeed = 2.5 * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        cameraPos += cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        cameraPos -= cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -254,4 +525,52 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     // make sure the viewport matches the new window dimensions; note that width and 
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
+}
+
+// glfw: whenever the mouse moves, this callback is called
+// -------------------------------------------------------
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    if (firstMouse)
+    {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    lastX = xpos;
+    lastY = ypos;
+
+    float sensitivity = 0.1f; // change this value to your liking
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    // make sure that when pitch is out of bounds, screen doesn't get flipped
+    if (pitch > 89.0f)
+        pitch = 89.0f;
+    if (pitch < -89.0f)
+        pitch = -89.0f;
+
+    glm::vec3 front;
+    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(pitch));
+    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(front);
+}
+
+// glfw: whenever the mouse scroll wheel scrolls, this callback is called
+// ----------------------------------------------------------------------
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    if (fov >= 1.0f && fov <= 45.0f)
+        fov -= yoffset;
+    if (fov <= 1.0f)
+        fov = 1.0f;
+    if (fov >= 45.0f)
+        fov = 45.0f;
 }
