@@ -83,7 +83,61 @@ int main()
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
-   float vertices[] = {
+     // set up vertex data (and buffer(s)) and configure vertex attributes
+    // ------------------------------------------------------------------
+    float wheel_vertices[] = {
+        // Back
+        -0.25f, -0.25f, -0.1f,  0.0f, 0.0f,
+         0.25f, -0.25f, -0.1f,  1.0f, 0.0f,
+         0.25f,  0.25f, -0.1f,  1.0f, 1.0f,
+         0.25f,  0.25f, -0.1f,  1.0f, 1.0f,
+        -0.25f,  0.25f, -0.1f,  0.0f, 1.0f,
+        -0.25f, -0.25f, -0.1f,  0.0f, 0.0f,
+
+        // Front
+        -0.25f, -0.25f,  0.1f,  0.0f, 0.0f,
+         0.25f, -0.25f,  0.1f,  1.0f, 0.0f,
+         0.25f,  0.25f,  0.1f,  1.0f, 1.0f,
+         0.25f,  0.25f,  0.1f,  1.0f, 1.0f,
+        -0.25f,  0.25f,  0.1f,  0.0f, 1.0f,
+        -0.25f, -0.25f,  0.1f,  0.0f, 0.0f,
+
+        // Left
+        -0.25f,  0.25f,  0.1f,  1.0f, 0.0f,
+        -0.25f,  0.25f, -0.1f,  1.0f, 1.0f,
+        -0.25f, -0.25f, -0.1f,  0.0f, 1.0f,
+        -0.25f, -0.25f, -0.1f,  0.0f, 1.0f,
+        -0.25f, -0.25f,  0.1f,  0.0f, 0.0f,
+        -0.25f,  0.25f,  0.1f,  1.0f, 0.0f,
+        
+        // Right
+         0.25f,  0.25f,  0.1f,  1.0f, 0.0f,
+         0.25f,  0.25f, -0.1f,  1.0f, 1.0f,
+         0.25f, -0.25f, -0.1f,  0.0f, 1.0f,
+         0.25f, -0.25f, -0.1f,  0.0f, 1.0f,
+         0.25f, -0.25f,  0.1f,  0.0f, 0.0f,
+         0.25f,  0.25f,  0.1f,  1.0f, 0.0f,
+
+        // Bottom
+        -0.25f, -0.25f, -0.1f,  0.0f, 1.0f,
+         0.25f, -0.25f, -0.1f,  1.0f, 1.0f,
+         0.25f, -0.25f,  0.1f,  1.0f, 0.0f,
+         0.25f, -0.25f,  0.1f,  1.0f, 0.0f,
+        -0.25f, -0.25f,  0.1f,  0.0f, 0.0f,
+        -0.25f, -0.25f, -0.1f,  0.0f, 1.0f,
+
+        // Top
+        -0.25f,  0.25f, -0.1f,  0.0f, 1.0f,
+         0.25f,  0.25f, -0.1f,  1.0f, 1.0f,
+         0.25f,  0.25f,  0.1f,  1.0f, 0.0f,
+         0.25f,  0.25f,  0.1f,  1.0f, 0.0f,
+        -0.25f,  0.25f,  0.1f,  0.0f, 0.0f,
+        -0.25f,  0.25f, -0.1f,  0.0f, 1.0f
+    };
+
+    int wheel_vertices_sizes = ((sizeof wheel_vertices) / (sizeof * wheel_vertices));
+
+    float vertices[] = {
         // Back
         -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
          0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
@@ -254,25 +308,27 @@ int main()
 
     int vertice_sizes = (sizeof(vertices)/sizeof(*vertices));
 
-  // world space positions of our cubes
-    glm::vec3 cubePositions[] = {
+    // world space positions of car body
+    glm::vec3 carBodyPositions[] = {
         glm::vec3( 0.0f,  0.0f,  0.0f),
     };
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+    int car_body_number = (sizeof(carBodyPositions)/sizeof(*carBodyPositions));
 
+    // world space positions of car wheel
+    glm ::vec3 carWheelPositions[] = {
+        glm::vec3(0.75f, -0.5f, 0.5f),
+        glm::vec3(-0.75f, -0.5f, 0.5f),
+        glm::vec3(0.75f, -0.5f, -0.5f),
+        glm::vec3(-0.75f, -0.5f, -0.5f),
+    };
+    int car_wheel_number = (sizeof(carWheelPositions)/sizeof(*carWheelPositions));
+
+    unsigned int VBO, VAO, wheelVBO;
+    glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    // texture coord attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &wheelVBO);
 
     // load and create a texture 
     // -------------------------
@@ -341,6 +397,9 @@ int main()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
+        // Degree for wheel rotation
+    int rotationAngle = 0;
+
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -385,28 +444,64 @@ int main()
         lightingShader.setMat4("projection", projection);
         lightingShader.setMat4("view", view);
 
-        // // world transformation
-        // glm::mat4 model;
-        // lightingShader.setMat4("model", model);
-
-        // render boxes
+        // render car body
         glBindVertexArray(VAO);
-        for (unsigned int i = 0; i < 1; i++)
+
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        // position attribute
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+
+        // texture coord attribute
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+
+        for (unsigned int i = 0; i < car_body_number; i++)
         {
             // calculate the model matrix for each object and pass it to shader before drawing
             glm::mat4 model;
-            model = glm::translate(model, cubePositions[i]);
-            float angle = 20.0f * i;
+            model = glm::translate(model, carBodyPositions[i]);
+            float angle = /*2*/0.0f * i;
             model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
             lightingShader.setMat4("model", model);
 
             glDrawArrays(GL_TRIANGLES, 0, vertice_sizes);
         }
 
+        // // render car wheel
+        // glBindBuffer(GL_ARRAY_BUFFER, wheelVBO);
+        // glBufferData(GL_ARRAY_BUFFER, sizeof(wheel_vertices), wheel_vertices, GL_STATIC_DRAW);
+        // // position attribute
+        // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        // glEnableVertexAttribArray(0);
+        // glEnableVertexAttribArray(1);
+        // // texture coord attribute
+        // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+        // glEnableVertexAttribArray(2);
+
+        // Add rotation
+        rotationAngle = (rotationAngle+1) % 360;
+        
+        for (unsigned int i = 0; i < car_wheel_number; i++)
+        {
+            // calculate the model matrix for each object and pass it to shader before drawing
+            glm::mat4 model;
+            model = glm::translate(model, carWheelPositions[i]);
+            float angle = /*2*/0.0f * i;
+            model = glm::rotate(model, (float)rotationAngle, glm::vec3(0.0f, 0.0f, 1.0f));
+            model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
+            lightingShader.setMat4("model", model);
+
+            glDrawArrays(GL_TRIANGLES, 0, wheel_vertices_sizes);
+        }
+
         // also draw the lamp object
         lampShader.use();
         lampShader.setMat4("projection", projection);
         lampShader.setMat4("view", view);
+        glm::mat4 model;
         model = glm::mat4();
         model = glm::translate(model, lightPos);
         model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
