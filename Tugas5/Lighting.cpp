@@ -33,6 +33,9 @@ float lastFrame = 0.0f;
 
 // lighting
 glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+float _R = 1.0f;
+float _G = 1.0f;
+float _B = 1.0f; 
 
 int main()
 {
@@ -434,7 +437,7 @@ int main()
         lightingShader.setInt("texture2", 1);
 
         lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
-        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("lightColor", _R, _G, _B);
         lightingShader.setVec3("lightPos", lightPos);
         lightingShader.setVec3("viewPos", camera.Position);
 
@@ -543,6 +546,13 @@ void processInput(GLFWwindow *window)
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
+        _R += 0.1f; _G += 0.1f; _B += 0.1f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
+        _R -= 0.1f; _G -= 0.1f; _B -= 0.1f;
+    }
+
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
