@@ -6,12 +6,25 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/norm.hpp>
 
 #include <learnopengl/shader_m.h>
 #include <learnopengl/camera.h>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <algorithm>
 #include <iostream>
 
+
+#define MAX_PARTICLES 100000
+
+int FindUnusedRainParticle();
+int FindUnusedSmokeParticle();
+
+void SortRainParticles();
+void SortSmokeParticles();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -20,6 +33,25 @@ void processInput(GLFWwindow *window);
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+
+struct Particle {
+	glm::vec3 pos, speed;
+	unsigned char r, g, b, a;
+	float size, angle, weight;
+	float life;
+	float cameradistance;
+
+	bool operator<(const Particle& that) const {
+		// Sort in reverse order : far particles drawn first.
+		return this->cameradistance > that.cameradistance;
+	}
+};
+
+Particle RainParticlesContainer[MAX_PARTICLES];
+int LastUsedRainParticle = 0;
+
+Particle SmokeParticlesContainer[MAX_PARTICLES];
+int LastUsedSmokeParticle = 0;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -309,6 +341,32 @@ int main()
         -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
     };
 
+    static GLfloat* rain_position = new GLfloat[MAX_PARTICLES * 4];
+	static GLubyte* rain_color = new GLubyte[MAX_PARTICLES * 4];
+	for (int i = 0; i < MAX_PARTICLES; i++) {
+		RainParticlesContainer[i].life = -1.0f;
+		RainParticlesContainer[i].cameradistance = -1.0f;
+	}
+	static const GLfloat rain_vertexes[] = {
+		-0.01f, -0.1f, 0.0f,
+		0.01f, -0.1f, 0.0f,
+		-0.01f, 0.1f, 0.0f,
+		0.01f, 0.1f, 0.0f,
+	};
+
+    static GLfloat* smoke_position = new GLfloat[MAX_PARTICLES * 4];
+	static GLubyte* smoke_color = new GLubyte[MAX_PARTICLES * 4];
+	for (int i = 0; i < MAX_PARTICLES; i++) {
+		SmokeParticlesContainer[i].life = -1.0f;
+		SmokeParticlesContainer[i].cameradistance = -1.0f;
+	}
+	static const GLfloat smoke_vertexes[] = {
+		-0.1f, -0.1f, 0.0f,
+		0.1f, -0.1f, 0.0f,
+		-0.1f, 0.1f, 0.0f,
+		0.1f, 0.1f, 0.0f,
+	};
+
     int vertice_sizes = (sizeof(vertices)/sizeof(*vertices));
 
     // world space positions of car body
@@ -403,6 +461,58 @@ int main()
         // Degree for wheel rotation
     int rotationAngle = 0;
 
+	// Create Vertex Array Object
+	GLuint RainVAO;
+	glGenVertexArrays(1, &RainVAO);
+	glBindVertexArray(RainVAO);
+	// Create a Vertex Buffer Object and copy the vertex data to it
+	GLuint RainVBO;
+	glGenBuffers(1, &RainVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, RainVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(rain_vertexes), rain_vertexes, GL_STATIC_DRAW);
+	GLuint RainPositionVBO;
+	glGenBuffers(1, &RainPositionVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, RainPositionVBO);
+	glBufferData(GL_ARRAY_BUFFER, MAX_PARTICLES * 4 * sizeof(GLfloat), NULL, GL_STREAM_DRAW);
+	GLuint RainColorVBO;
+	glGenBuffers(1, &RainColorVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, RainColorVBO);
+	glBufferData(GL_ARRAY_BUFFER, MAX_PARTICLES * 4 * sizeof(GLubyte), NULL, GL_STREAM_DRAW);
+
+    Shader RainShader("RainVertexShader.vs", "RainFragmentShader.fs");
+
+    RainShader.use();
+    RainShader.setVec3("RainCameraRight",0,0,0);
+    RainShader.setVec3("RainCameraUp",0,0,0);
+    RainShader.setMat4("RainVP", camera.GetViewMatrix());
+	RainShader.setInt("rainTextureSampler", 0);
+
+    // Create Vertex Array Object
+	GLuint SmokeVAO;
+	glGenVertexArrays(1, &SmokeVAO);
+	glBindVertexArray(SmokeVAO);
+	// Create a Vertex Buffer Object and copy the vertex data to it
+	GLuint SmokeVBO;
+	glGenBuffers(1, &SmokeVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, SmokeVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(smoke_vertexes), smoke_vertexes, GL_STATIC_DRAW);
+	GLuint SmokePositionVBO;
+	glGenBuffers(1, &SmokePositionVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, SmokePositionVBO);
+	glBufferData(GL_ARRAY_BUFFER, MAX_PARTICLES * 4 * sizeof(GLfloat), NULL, GL_STREAM_DRAW);
+	GLuint SmokeColorVBO;
+	glGenBuffers(1, &SmokeColorVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, SmokeColorVBO);
+	glBufferData(GL_ARRAY_BUFFER, MAX_PARTICLES * 4 * sizeof(GLubyte), NULL, GL_STREAM_DRAW);
+
+    Shader SmokeShader("SmokeVertexShader.vs", "SmokeFragmentShader.fs");
+
+    SmokeShader.use();
+    SmokeShader.setVec3("SmokeCameraRight",0,0,0);
+    SmokeShader.setVec3("SmokeCameraUp",0,0,0);
+    SmokeShader.setMat4("SmokeVP", camera.GetViewMatrix());
+	SmokeShader.setInt("smokeTextureSampler", 0);
+
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -443,7 +553,7 @@ int main()
 
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = camera.GetViewMatrix();
+        glm::mat4 view = camera.GetViewMatrix();camera.GetViewMatrix();
         lightingShader.setMat4("projection", projection);
         lightingShader.setMat4("view", view);
 
@@ -513,6 +623,248 @@ int main()
         glBindVertexArray(lightVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+        /* RAIN */
+		glm::mat4 RainProjectionMatrix = projection;
+		glm::mat4 RainViewMatrix = view;
+		glm::vec3 RainCameraPosition(glm::inverse(RainViewMatrix)[3]);
+		glm::mat4 RainViewProjectionMatrix = RainProjectionMatrix * RainViewMatrix;
+		// Generate 10 new particule each millisecond but limit to 60 fps
+		int rainNewparticles = (int)(deltaTime*10000.0);
+		if (rainNewparticles > (int)(0.016f*10000.0)) {
+			rainNewparticles = (int)(0.016f*10000.0);
+		}
+		for (int i = 0; i < rainNewparticles; i++) {
+			int rainParticleIndex = FindUnusedRainParticle();
+			RainParticlesContainer[rainParticleIndex].life = 0.2f;
+			RainParticlesContainer[rainParticleIndex].pos = glm::vec3(0.0f, 2.0f, 0.0f);
+			float rainSpread = 5.0f;
+			glm::vec3 rainMaindir = glm::vec3(0.0f, -10.0f, 0.0f);
+			// Random direction
+			glm::vec3 rainRandomdir = glm::vec3(
+				(rand() % 2000 - 1000.0f) / 1000.0f,
+				(rand() % 2000 - 1000.0f) / 1000.0f,
+				(rand() % 2000 - 1000.0f) / 1000.0f
+			);
+			RainParticlesContainer[rainParticleIndex].speed = rainMaindir + rainRandomdir * rainSpread;
+			// Random color
+			RainParticlesContainer[rainParticleIndex].r = rand() % 256;
+			RainParticlesContainer[rainParticleIndex].g = rand() % 256;
+			RainParticlesContainer[rainParticleIndex].b = rand() % 256;
+			RainParticlesContainer[rainParticleIndex].a = (rand() % 256) / 3;
+			RainParticlesContainer[rainParticleIndex].size = (rand() % 1000) / 2000.0f + 0.1f;
+		}
+		// Simulate all particles
+		int rainParticlesCount = 0;
+		for (int i = 0; i < MAX_PARTICLES; i++) {
+			Particle& p = RainParticlesContainer[i];
+			if (p.life > 0.0f) {
+				// Decrease life
+				p.life -= deltaTime;
+				if (p.life > 0.0f) {
+					// Simulate simple physics : gravity only, no collisions
+					p.speed += glm::vec3(0.0f, -9.81f, 0.0f) * (float)deltaTime * 0.5f;
+					p.pos += p.speed * (float)deltaTime;
+					p.cameradistance = glm::length2(p.pos - RainCameraPosition);
+					// Fill the GPU buffer
+					rain_position[4 * rainParticlesCount + 0] = p.pos.x;
+					rain_position[4 * rainParticlesCount + 1] = p.pos.y;
+					rain_position[4 * rainParticlesCount + 2] = p.pos.z;
+					rain_position[4 * rainParticlesCount + 3] = p.size;
+					rain_color[4 * rainParticlesCount + 0] = p.r;
+					rain_color[4 * rainParticlesCount + 1] = p.g;
+					rain_color[4 * rainParticlesCount + 2] = p.b;
+					rain_color[4 * rainParticlesCount + 3] = p.a;
+				}
+				else {
+					// Particles that just died will be put at the end of the buffer in SortParticles()
+					p.cameradistance = -1.0f;
+				}
+				rainParticlesCount++;
+			}
+		}
+		SortRainParticles();
+		// Use our shader
+		RainShader.use();
+		// Bind our texture in Texture Unit 0
+		// glActiveTexture(GL_TEXTURE0);
+		// glBindTexture(GL_TEXTURE_2D, RainTexture);
+		// Set our "myTextureSampler" sampler to use Texture Unit 0
+		// glUniform1i(RainTextureID, 0);
+		// Send our transformation to the currently bound shader, 
+		// in the "MVP" uniform
+		RainShader.setVec3("RainCameraRight", RainViewMatrix[0][0], RainViewMatrix[1][0], RainViewMatrix[2][0]);
+		RainShader.setVec3("RainCameraUp", RainViewMatrix[0][1], RainViewMatrix[1][1], RainViewMatrix[2][1]);
+		RainShader.setMat4("RainVP", RainViewProjectionMatrix);
+		// Draw object
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBindBuffer(GL_ARRAY_BUFFER, RainPositionVBO);
+		glBufferData(GL_ARRAY_BUFFER, MAX_PARTICLES * 4 * sizeof(GLfloat), NULL, GL_STREAM_DRAW);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, rainParticlesCount * sizeof(GLfloat) * 4, rain_position);
+		glBindBuffer(GL_ARRAY_BUFFER, RainColorVBO);
+		glBufferData(GL_ARRAY_BUFFER, MAX_PARTICLES * 4 * sizeof(GLubyte), NULL, GL_STREAM_DRAW);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, rainParticlesCount * sizeof(GLubyte) * 4, rain_color);
+		glEnableVertexAttribArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, RainVBO);
+		glVertexAttribPointer(
+			0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
+			3,                  // size
+			GL_FLOAT,           // type
+			GL_FALSE,           // normalized?
+			0,                  // stride
+			(void*)0            // array buffer offset
+		);
+		// Position object
+		glEnableVertexAttribArray(1);
+		glBindBuffer(GL_ARRAY_BUFFER, RainPositionVBO);
+		glVertexAttribPointer(
+			1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
+			4,                                // size : x + y + z + size => 4
+			GL_FLOAT,                         // type
+			GL_FALSE,                         // normalized?
+			0,                                // stride
+			(void*)0                          // array buffer offset
+		);
+		// Color object
+		glEnableVertexAttribArray(2);
+		glBindBuffer(GL_ARRAY_BUFFER, RainColorVBO);
+		glVertexAttribPointer(
+			2,                                // attribute. No particular reason for 1, but must match the layout in the shader.
+			4,                                // size : r + g + b + a => 4
+			GL_UNSIGNED_BYTE,                 // type
+			GL_TRUE,                          // normalized?    *** YES, this means that the unsigned char[4] will be accessible with a vec4 (floats) in the shader ***
+			0,                                // stride
+			(void*)0                          // array buffer offset
+		);
+		glVertexAttribDivisor(0, 0); // particles vertices : always reuse the same 4 vertices -> 0
+		glVertexAttribDivisor(1, 1); // positions : one per quad (its center)                 -> 1
+		glVertexAttribDivisor(2, 1); // color : one per quad                                  -> 1
+		glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, rainParticlesCount);
+
+
+        /* SMOKE */
+		// Setup camera matrix
+		glm::mat4 SmokeProjectionMatrix = projection;
+		glm::mat4 SmokeViewMatrix = view;
+		glm::vec3 SmokeCameraPosition(glm::inverse(SmokeViewMatrix)[3]);
+		glm::mat4 SmokeViewProjectionMatrix = SmokeProjectionMatrix * SmokeViewMatrix;
+		// Generate 10 new particule each millisecond but limit to 60 fps
+		int smokeNewparticles = (int)(deltaTime*10000.0);
+		if (smokeNewparticles > (int)(0.016f*10000.0)) {
+			smokeNewparticles = (int)(0.016f*10000.0);
+		}
+		for (int i = 0; i < smokeNewparticles; i++) {
+			int smokeParticleIndex = FindUnusedSmokeParticle();
+			SmokeParticlesContainer[smokeParticleIndex].life = 0.2f;
+			SmokeParticlesContainer[smokeParticleIndex].pos = glm::vec3(-0.9f, -0.4f, 0.0f);
+			float smokeSpread = 1.5f;
+			glm::vec3 smokeMaindir = glm::vec3(-10.0f, 0.0f, 0.0f);
+			// Random direction
+			glm::vec3 smokeRandomdir = glm::vec3(
+				(rand() % 2000 - 1000.0f) / 1000.0f,
+				(rand() % 2000 - 1000.0f) / 1000.0f,
+				(rand() % 2000 - 1000.0f) / 1000.0f
+			);
+			SmokeParticlesContainer[smokeParticleIndex].speed = smokeMaindir + smokeRandomdir * smokeSpread;
+			// Random color
+			// SmokeParticlesContainer[smokeParticleIndex].r = rand() % 256;
+			// SmokeParticlesContainer[smokeParticleIndex].g = rand() % 256;
+			// SmokeParticlesContainer[smokeParticleIndex].b = rand() % 256;
+             SmokeParticlesContainer[smokeParticleIndex].r = 3;
+			SmokeParticlesContainer[smokeParticleIndex].g = 3;
+			SmokeParticlesContainer[smokeParticleIndex].b = 3;
+			SmokeParticlesContainer[smokeParticleIndex].a = (rand() % 256) / 3;
+			SmokeParticlesContainer[smokeParticleIndex].size = (rand() % 1000) / 2000.0f + 0.1f;
+		}
+		// Simulate all particles
+		int smokeParticlesCount = 0;
+		for (int i = 0; i < MAX_PARTICLES; i++) {
+			Particle& p = SmokeParticlesContainer[i];
+			if (p.life > 0.0f) {
+				// Decrease life
+				p.life -= deltaTime;
+				if (p.life > 0.0f) {
+					// Simulate simple physics : gravity only, no collisions
+					p.speed += glm::vec3(0.0f, -9.81f, 0.0f) * (float)deltaTime * 0.5f;
+					p.pos += p.speed * (float)deltaTime;
+					p.cameradistance = glm::length2(p.pos - SmokeCameraPosition);
+					// Fill the GPU buffer
+					smoke_position[4 * smokeParticlesCount + 0] = p.pos.x;
+					smoke_position[4 * smokeParticlesCount + 1] = p.pos.y;
+					smoke_position[4 * smokeParticlesCount + 2] = p.pos.z;
+					smoke_position[4 * smokeParticlesCount + 3] = p.size;
+					smoke_color[4 * smokeParticlesCount + 0] = p.r;
+					smoke_color[4 * smokeParticlesCount + 1] = p.g;
+					smoke_color[4 * smokeParticlesCount + 2] = p.b;
+					smoke_color[4 * smokeParticlesCount + 3] = p.a;
+				}
+				else {
+					// Particles that just died will be put at the end of the buffer in SortParticles()
+					p.cameradistance = -1.0f;
+				}
+				smokeParticlesCount++;
+			}
+		}
+		SortSmokeParticles();
+		// Use our shader
+		SmokeShader.use();
+		// Bind our texture in Texture Unit 0
+		// glActiveTexture(GL_TEXTURE0);
+		// glBindTexture(GL_TEXTURE_2D, SmokeTexture);
+		// Set our "myTextureSampler" sampler to use Texture Unit 0
+		// glUniform1i(SmokeTextureID, 0);
+		// Send our transformation to the currently bound shader, 
+		// in the "MVP" uniform
+		SmokeShader.setVec3("SmokeCameraRight", SmokeViewMatrix[0][0], SmokeViewMatrix[1][0], SmokeViewMatrix[2][0]);
+		SmokeShader.setVec3("SmokeCameraUp", SmokeViewMatrix[0][1], SmokeViewMatrix[1][1], SmokeViewMatrix[2][1]);
+		SmokeShader.setMat4("SmokeVP", SmokeViewProjectionMatrix);
+		// Draw object
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBindBuffer(GL_ARRAY_BUFFER, SmokePositionVBO);
+		glBufferData(GL_ARRAY_BUFFER, MAX_PARTICLES * 4 * sizeof(GLfloat), NULL, GL_STREAM_DRAW);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, smokeParticlesCount * sizeof(GLfloat) * 4, smoke_position);
+		glBindBuffer(GL_ARRAY_BUFFER, SmokeColorVBO);
+		glBufferData(GL_ARRAY_BUFFER, MAX_PARTICLES * 4 * sizeof(GLubyte), NULL, GL_STREAM_DRAW);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, smokeParticlesCount * sizeof(GLubyte) * 4, smoke_color);
+		glEnableVertexAttribArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, SmokeVBO);
+		glVertexAttribPointer(
+			0,                  // attribute. No particular reason for 0, but must match the layout in the shader.
+			3,                  // size
+			GL_FLOAT,           // type
+			GL_FALSE,           // normalized?
+			0,                  // stride
+			(void*)0            // array buffer offset
+		);
+		// Position object
+		glEnableVertexAttribArray(1);
+		glBindBuffer(GL_ARRAY_BUFFER, SmokePositionVBO);
+		glVertexAttribPointer(
+			1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
+			4,                                // size : x + y + z + size => 4
+			GL_FLOAT,                         // type
+			GL_FALSE,                         // normalized?
+			0,                                // stride
+			(void*)0                          // array buffer offset
+		);
+		// Color object
+		glEnableVertexAttribArray(2);
+		glBindBuffer(GL_ARRAY_BUFFER, SmokeColorVBO);
+		glVertexAttribPointer(
+			2,                                // attribute. No particular reason for 1, but must match the layout in the shader.
+			4,                                // size : r + g + b + a => 4
+			GL_UNSIGNED_BYTE,                 // type
+			GL_TRUE,                          // normalized?    *** YES, this means that the unsigned char[4] will be accessible with a vec4 (floats) in the shader ***
+			0,                                // stride
+			(void*)0                          // array buffer offset
+		);
+		glVertexAttribDivisor(0, 0); // particles vertices : always reuse the same 4 vertices -> 0
+		glVertexAttribDivisor(1, 1); // positions : one per quad (its center)                 -> 1
+		glVertexAttribDivisor(2, 1); // color : one per quad                                  -> 1
+		glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, smokeParticlesCount);
+
+
 
         // glfw: swap buffers and poll IO events
         glfwSwapBuffers(window);
@@ -524,6 +876,12 @@ int main()
     glDeleteVertexArrays(1, &VAO);
     glDeleteVertexArrays(1, &lightVAO);
     glDeleteBuffers(1, &VBO);
+	glDeleteBuffers(1, &SmokeVBO);
+	glDeleteBuffers(1, &SmokePositionVBO);
+	glDeleteBuffers(1, &SmokeColorVBO);
+	glDeleteBuffers(1, &RainVBO);
+	glDeleteBuffers(1, &RainPositionVBO);
+	glDeleteBuffers(1, &RainColorVBO);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
@@ -590,4 +948,48 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(yoffset);
+}
+
+int FindUnusedRainParticle() {
+	for (int i = LastUsedRainParticle; i < MAX_PARTICLES; i++) {
+		if (RainParticlesContainer[i].life < 0) {
+			LastUsedRainParticle = i;
+			return i;
+		}
+	}
+
+	for (int i = 0; i < LastUsedRainParticle; i++) {
+		if (RainParticlesContainer[i].life < 0) {
+			LastUsedRainParticle = i;
+			return i;
+		}
+	}
+
+	return 0;
+}
+
+void SortRainParticles() {
+	std::sort(&RainParticlesContainer[0], &RainParticlesContainer[MAX_PARTICLES]);
+}
+
+int FindUnusedSmokeParticle() {
+	for (int i = LastUsedSmokeParticle; i < MAX_PARTICLES; i++) {
+		if (SmokeParticlesContainer[i].life < 0) {
+			LastUsedSmokeParticle = i;
+			return i;
+		}
+	}
+
+	for (int i = 0; i < LastUsedSmokeParticle; i++) {
+		if (SmokeParticlesContainer[i].life < 0) {
+			LastUsedSmokeParticle = i;
+			return i;
+		}
+	}
+
+	return 0;
+}
+
+void SortSmokeParticles() {
+	std::sort(&SmokeParticlesContainer[0], &SmokeParticlesContainer[MAX_PARTICLES]);
 }
