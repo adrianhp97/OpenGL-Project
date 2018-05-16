@@ -69,6 +69,13 @@ float _R = 1.0f;
 float _G = 1.0f;
 float _B = 1.0f; 
 
+// Addition
+float _smokeSpread = 1.5f;
+float _rainSpread = 5.0f;
+float _numRainParticlesFactor = 1.0f;
+float rainAngle = 0.0f;
+float rainLife = 0.2f;
+
 int main()
 {
     // glfw: initialize and configure
@@ -628,16 +635,17 @@ int main()
 		glm::mat4 RainViewMatrix = view;
 		glm::vec3 RainCameraPosition(glm::inverse(RainViewMatrix)[3]);
 		glm::mat4 RainViewProjectionMatrix = RainProjectionMatrix * RainViewMatrix;
+        glm::mat4 prevRainViewProjectionMatrix = RainViewProjectionMatrix;
 		// Generate 10 new particule each millisecond but limit to 60 fps
-		int rainNewparticles = (int)(deltaTime*10000.0);
-		if (rainNewparticles > (int)(0.016f*10000.0)) {
-			rainNewparticles = (int)(0.016f*10000.0);
-		}
+		int rainNewparticles = (int)(deltaTime*10000.0*_numRainParticlesFactor);
+		// if (rainNewparticles > (int)(0.016f*10000.0)) {
+		// 	rainNewparticles = (int)(0.016f*10000.0);
+		// }
 		for (int i = 0; i < rainNewparticles; i++) {
 			int rainParticleIndex = FindUnusedRainParticle();
-			RainParticlesContainer[rainParticleIndex].life = 0.2f;
+			RainParticlesContainer[rainParticleIndex].life = rainLife;
 			RainParticlesContainer[rainParticleIndex].pos = glm::vec3(0.0f, 2.0f, 0.0f);
-			float rainSpread = 5.0f;
+			float rainSpread = _rainSpread;
 			glm::vec3 rainMaindir = glm::vec3(0.0f, -10.0f, 0.0f);
 			// Random direction
 			glm::vec3 rainRandomdir = glm::vec3(
@@ -646,10 +654,13 @@ int main()
 				(rand() % 2000 - 1000.0f) / 1000.0f
 			);
 			RainParticlesContainer[rainParticleIndex].speed = rainMaindir + rainRandomdir * rainSpread;
+            // Rotation angle
+            RainViewProjectionMatrix = prevRainViewProjectionMatrix;
+            RainViewProjectionMatrix = glm::rotate(RainViewProjectionMatrix, (float) rainAngle, glm::vec3(0.0f, 0.0f, 1.0f));
 			// Random color
-			RainParticlesContainer[rainParticleIndex].r = rand() % 256;
-			RainParticlesContainer[rainParticleIndex].g = rand() % 256;
-			RainParticlesContainer[rainParticleIndex].b = rand() % 256;
+			RainParticlesContainer[rainParticleIndex].r = 255;//rand() % 256;
+			RainParticlesContainer[rainParticleIndex].g = 255;//rand() % 256;
+			RainParticlesContainer[rainParticleIndex].b = 255;//rand() % 256;
 			RainParticlesContainer[rainParticleIndex].a = (rand() % 256) / 3;
 			RainParticlesContainer[rainParticleIndex].size = (rand() % 1000) / 2000.0f + 0.1f;
 		}
@@ -757,7 +768,7 @@ int main()
 			int smokeParticleIndex = FindUnusedSmokeParticle();
 			SmokeParticlesContainer[smokeParticleIndex].life = 0.2f;
 			SmokeParticlesContainer[smokeParticleIndex].pos = glm::vec3(-0.9f, -0.4f, 0.0f);
-			float smokeSpread = 1.5f;
+			float smokeSpread = _smokeSpread;
 			glm::vec3 smokeMaindir = glm::vec3(-10.0f, 0.0f, 0.0f);
 			// Random direction
 			glm::vec3 smokeRandomdir = glm::vec3(
@@ -910,7 +921,32 @@ void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
         _R -= 0.1f; _G -= 0.1f; _B -= 0.1f;
     }
-
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
+        _smokeSpread -= 0.1f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
+        _smokeSpread += 0.1f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+        _rainSpread -= 0.1f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+        _rainSpread += 0.1f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+        _numRainParticlesFactor -= 0.1f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
+        _numRainParticlesFactor += 0.1f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        if (rainAngle < 0.0f) rainAngle += 0.1f;
+        rainLife -= 0.005f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+        if (rainAngle > -0.75f) rainAngle -= 0.1f;
+        rainLife += 0.005f;
+    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
