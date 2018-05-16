@@ -520,6 +520,9 @@ int main()
     SmokeShader.setMat4("SmokeVP", camera.GetViewMatrix());
 	SmokeShader.setInt("smokeTextureSampler", 0);
 
+    double lastTime = glfwGetTime();
+    int nframes = 0;
+
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -528,6 +531,15 @@ int main()
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+
+        double currentTime = glfwGetTime();
+        nframes++;
+        if (currentTime -lastTime >= 1.0) {
+            printf("%f ms/frame\n", 1000.0/double(nframes));
+            printf("FPS: %f\n", double(nframes));
+            nframes = 0;
+            lastTime += 1.0;
+        }
 
         // input
         processInput(window);
