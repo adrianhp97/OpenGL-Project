@@ -73,6 +73,7 @@ float _B = 1.0f;
 float _smokeSpread = 1.5f;
 float _rainSpread = 5.0f;
 float _numRainParticlesFactor = 1.0f;
+float numSmokeParticle = 1.0f;
 float rainAngle = 0.0f;
 float rainLife = 0.2f;
 
@@ -612,8 +613,8 @@ int main()
             float angle = /*2*/0.0f * i;
             model = glm::rotate(model, (float)rotationAngle, glm::vec3(0.0f, 0.0f, 1.0f));
             model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
-            lightingShader.setMat4("model", model);
 
+            lightingShader.setMat4("model", model);
             glDrawArrays(GL_TRIANGLES, 0, wheel_vertices_sizes);
         }
 
@@ -644,7 +645,7 @@ int main()
 		for (int i = 0; i < rainNewparticles; i++) {
 			int rainParticleIndex = FindUnusedRainParticle();
 			RainParticlesContainer[rainParticleIndex].life = rainLife;
-			RainParticlesContainer[rainParticleIndex].pos = glm::vec3(0.0f, 2.0f, 0.0f);
+			RainParticlesContainer[rainParticleIndex].pos = glm::vec3(	(rand() % 2000 - 1000.0f) / 1000.0f,	(rand() % 2000 - 1000.0f) / 1000.0f,	(rand() % 2000 - 1000.0f) / 1000.0f);
 			float rainSpread = _rainSpread;
 			glm::vec3 rainMaindir = glm::vec3(0.0f, -10.0f, 0.0f);
 			// Random direction
@@ -760,10 +761,10 @@ int main()
 		glm::vec3 SmokeCameraPosition(glm::inverse(SmokeViewMatrix)[3]);
 		glm::mat4 SmokeViewProjectionMatrix = SmokeProjectionMatrix * SmokeViewMatrix;
 		// Generate 10 new particule each millisecond but limit to 60 fps
-		int smokeNewparticles = (int)(deltaTime*10000.0);
-		if (smokeNewparticles > (int)(0.016f*10000.0)) {
-			smokeNewparticles = (int)(0.016f*10000.0);
-		}
+		int smokeNewparticles = (int)(deltaTime*10000.0*numSmokeParticle);
+		// if (smokeNewparticles > (int)(0.016f*10000.0)) {
+		// 	smokeNewparticles = (int)(0.016f*10000.0);
+		// }
 		for (int i = 0; i < smokeNewparticles; i++) {
 			int smokeParticleIndex = FindUnusedSmokeParticle();
 			SmokeParticlesContainer[smokeParticleIndex].life = 0.2f;
@@ -938,6 +939,12 @@ void processInput(GLFWwindow *window)
     }
     if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
         _numRainParticlesFactor += 0.1f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS) {
+        numSmokeParticle -= 0.1f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_RIGHT_ALT) == GLFW_PRESS) {
+        numSmokeParticle += 0.1f;
     }
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
         if (rainAngle < 0.0f) rainAngle += 0.1f;
