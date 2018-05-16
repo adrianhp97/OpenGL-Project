@@ -18,7 +18,7 @@
 #include <iostream>
 
 
-#define MAX_PARTICLES 100000
+#define MAX_PARTICLES 65000
 
 int FindUnusedRainParticle();
 int FindUnusedSmokeParticle();
@@ -73,6 +73,7 @@ float _B = 1.0f;
 float _smokeSpread = 1.5f;
 float _rainSpread = 5.0f;
 float _numRainParticlesFactor = 1.0f;
+float smokeParticleFactor = 1.0f;
 float rainAngle = 0.0f;
 float rainLife = 0.2f;
 
@@ -535,8 +536,7 @@ int main()
         double currentTime = glfwGetTime();
         nframes++;
         if (currentTime -lastTime >= 1.0) {
-            printf("%f ms/frame\n", 1000.0/double(nframes));
-            printf("FPS: %f\n", double(nframes));
+            printf("%.0f FPS\n", double(nframes));
             nframes = 0;
             lastTime += 1.0;
         }
@@ -655,7 +655,11 @@ int main()
 		for (int i = 0; i < rainNewparticles; i++) {
 			int rainParticleIndex = FindUnusedRainParticle();
 			RainParticlesContainer[rainParticleIndex].life = rainLife;
-			RainParticlesContainer[rainParticleIndex].pos = glm::vec3(0.0f, 2.0f, 0.0f);
+			RainParticlesContainer[rainParticleIndex].pos = glm::vec3(
+				(rand() % 2000 - 1000.0f) / 1000.0f,
+				(rand() % 2000 - 1000.0f) / 1000.0f,
+				(rand() % 2000 - 1000.0f) / 1000.0f
+			);
 			float rainSpread = _rainSpread;
 			glm::vec3 rainMaindir = glm::vec3(0.0f, -10.0f, 0.0f);
 			// Random direction
@@ -771,10 +775,10 @@ int main()
 		glm::vec3 SmokeCameraPosition(glm::inverse(SmokeViewMatrix)[3]);
 		glm::mat4 SmokeViewProjectionMatrix = SmokeProjectionMatrix * SmokeViewMatrix;
 		// Generate 10 new particule each millisecond but limit to 60 fps
-		int smokeNewparticles = (int)(deltaTime*10000.0);
-		if (smokeNewparticles > (int)(0.016f*10000.0)) {
-			smokeNewparticles = (int)(0.016f*10000.0);
-		}
+		int smokeNewparticles = (int)(deltaTime*10000.0*smokeParticleFactor);
+		// if (smokeNewparticles > (int)(0.016f*10000.0)) {
+		// 	smokeNewparticles = (int)(0.016f*10000.0);
+		// }
 		for (int i = 0; i < smokeNewparticles; i++) {
 			int smokeParticleIndex = FindUnusedSmokeParticle();
 			SmokeParticlesContainer[smokeParticleIndex].life = 0.2f;
@@ -958,6 +962,13 @@ void processInput(GLFWwindow *window)
         if (rainAngle > -0.75f) rainAngle -= 0.1f;
         rainLife += 0.005f;
     }
+    if (glfwGetKey(window, GLFW_KEY_RIGHT_ALT) == GLFW_PRESS) {
+        smokeParticleFactor -= 0.1f;    
+    }
+    if (glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS) {
+        smokeParticleFactor += 0.1f;
+    }
+
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
