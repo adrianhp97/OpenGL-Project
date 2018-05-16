@@ -540,7 +540,6 @@ int main()
             nframes = 0;
             lastTime += 1.0;
         }
-
         // input
         processInput(window);
 
